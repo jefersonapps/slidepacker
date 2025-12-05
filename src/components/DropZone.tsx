@@ -12,7 +12,7 @@ const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, isProcessing }) =>
       e.preventDefault();
       if (isProcessing) return;
       
-      const files = Array.from(e.dataTransfer.files).filter(file => 
+      const files = Array.from(e.dataTransfer.files).filter((file: File) => 
         file.type.startsWith('image/') || 
         file.type === 'text/csv' || 
         file.name.endsWith('.csv') ||
@@ -34,6 +34,8 @@ const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, isProcessing }) =>
     if (e.target.files && !isProcessing) {
       const files = Array.from(e.target.files);
       onFilesSelected(files);
+      // Reset the input value so the same file can be selected again
+      e.target.value = '';
     }
   };
 

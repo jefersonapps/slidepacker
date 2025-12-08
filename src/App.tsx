@@ -6,7 +6,23 @@ import { generatePresentation } from './services/pptxService';
 import DropZone from './components/DropZone';
 import SettingsPanel from './components/SettingsPanel';
 import ClassDialog from './components/ClassDialog';
-import { FileDown, Presentation, Plus, AlertCircle, FileSpreadsheet, Trash2, Table, BarChart3, History, ChevronDown, ChevronRight, ImageIcon } from 'lucide-react';
+import SortableClassItem from './components/SortableClassItem';
+import { FileDown, Presentation, Plus, AlertCircle } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 const App: React.FC = () => {
   const [classes, setClasses] = useState<ClassData[]>([]);
@@ -23,6 +39,25 @@ const App: React.FC = () => {
     slideLayout: '16x9',
     title: 'Relatório de Avaliação'
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setClasses((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   const handleFilesSelected = async (files: File[]) => {
     setPendingFiles(files);
@@ -101,6 +136,10 @@ const App: React.FC = () => {
     setClasses(prev => prev.filter(c => c.id !== classId));
   };
 
+  const updateClassName = (classId: string, newName: string) => {
+    setClasses(prev => prev.map(c => c.id === classId ? { ...c, name: newName } : c));
+  };
+
   const toggleClassExpanded = (classId: string) => {
     setExpandedClasses(prev => {
       const newSet = new Set(prev);
@@ -111,15 +150,6 @@ const App: React.FC = () => {
       }
       return newSet;
     });
-  };
-
-  const getIconForType = (type: string) => {
-    switch (type) {
-      case 'MATRIX': return <Table size={16} />;
-      case 'EVOLUTION': return <BarChart3 size={16} />;
-      case 'HISTORY': return <History size={16} />;
-      default: return <FileSpreadsheet size={16} />;
-    }
   };
 
   const totalItems = classes.reduce((sum, c) => sum + c.images.length + c.csvData.length, 0);
@@ -194,92 +224,28 @@ const App: React.FC = () => {
                   Turmas ({classes.length}) • {totalItems} arquivos
                 </h2>
                 
-                {classes.map(classData => {
-                  const isExpanded = expandedClasses.has(classData.id);
-                  const itemCount = classData.images.length + classData.csvData.length;
-                  
-                  return (
-                    <div key={classData.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-                      {/* Class Header */}
-                      <div 
-                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
-                        onClick={() => toggleClassExpanded(classData.id)}
-                      >
-                        <div className="flex items-center space-x-3 flex-1">
-                          {isExpanded ? <ChevronDown size={20} className="text-slate-400" /> : <ChevronRight size={20} className="text-slate-400" />}
-                          <div>
-                            <p className="font-semibold text-slate-800">{classData.name}</p>
-                            <p className="text-xs text-slate-500">
-                              {classData.csvData.length} dados • {classData.images.length} imagens
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeClass(classData.id);
-                          }}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-
-                      {/* Class Files (Collapsible) */}
-                      {isExpanded && (
-                        <div className="border-t border-slate-100 p-4 space-y-2 bg-slate-50/50">
-                          {/* CSV Files */}
-                          {classData.csvData.map(data => (
-                            <div key={data.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg">
-                              <div className="flex items-center space-x-3">
-                                <div className={`p-2 rounded-lg ${
-                                  data.type === 'UNKNOWN' ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'
-                                }`}>
-                                  {getIconForType(data.type)}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-slate-800">{data.filename}</p>
-                                  <p className="text-xs text-slate-500">
-                                    <span className="font-mono bg-slate-100 px-1 rounded uppercase">{data.type}</span> • {data.data.length} linhas
-                                  </p>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => removeFile(classData.id, 'csv', data.id)}
-                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          ))}
-
-                          {/* Image Files */}
-                          {classData.images.map(img => (
-                            <div key={img.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg">
-                              <div className="flex items-center space-x-3">
-                                <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
-                                  <ImageIcon size={16} />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-slate-800">{img.file.name}</p>
-                                  <p className="text-xs text-slate-500">
-                                    {img.width} × {img.height}px
-                                  </p>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => removeFile(classData.id, 'image', img.id)}
-                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext 
+                    items={classes.map(c => c.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {classes.map(classData => (
+                      <SortableClassItem
+                        key={classData.id}
+                        classData={classData}
+                        isExpanded={expandedClasses.has(classData.id)}
+                        onToggleExpand={toggleClassExpanded}
+                        onRemoveClass={removeClass}
+                        onRemoveFile={removeFile}
+                        onUpdateName={updateClassName}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
 

@@ -926,22 +926,7 @@ export const generatePresentation = async (
   for (const classData of classes) {
     const { images, csvData, name: className } = classData;
 
-    // 1. Images for this class
-    if (images.length > 0) {
-      images.forEach((img) => {
-        const slide = pres.addSlide();
-        slide.background = { color: config.backgroundColor };
-        const margin = config.margin;
-        
-        slide.addImage({
-          data: img.dataUrl,
-          x: margin, y: margin, 
-          w: 10 - (margin*2), 
-          h: 5.625 - (margin*2),
-          sizing: { type: 'contain', w: 10 - (margin*2), h: 5.625 - (margin*2) }
-        });
-      });
-    }
+
 
     // 2. Data Slides for this class - Generate in specific order
     // Order: 1) Fluency chart/table, 2) Levels Distribution, 3) Matrix slides, 
@@ -1029,6 +1014,47 @@ export const generatePresentation = async (
     // 6. Evolution Line Charts (Gráficos de Linha)
     if (evolution) {
       generateEvolutionLineSlides(pres, evolution.data as EvolutionRow[], className);
+    }
+
+    // 7. Images for this class (Moved to end)
+    if (images.length > 0) {
+      images.forEach((img) => {
+        const slide = pres.addSlide();
+        slide.background = { color: config.backgroundColor };
+        const margin = config.margin;
+        
+        // Available space
+        const availW = 10 - (margin * 2);
+        const availH = 5.625 - (margin * 2);
+
+        // Calculate aspect ratios
+        const imgRatio = img.width / img.height;
+        const slideRatio = availW / availH;
+
+        let newW, newH;
+
+        if (imgRatio > slideRatio) {
+          // Image is wider than slide (constrained by width)
+          newW = availW;
+          newH = newW / imgRatio;
+        } else {
+          // Image is taller than slide (constrained by height)
+          newH = availH;
+          newW = newH * imgRatio;
+        }
+
+        // Center the image
+        const x = margin + (availW - newW) / 2;
+        const y = margin + (availH - newH) / 2;
+        
+        slide.addImage({
+          data: img.dataUrl,
+          x: x,
+          y: y, 
+          w: newW, 
+          h: newH
+        });
+      });
     }
   }
 

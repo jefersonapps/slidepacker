@@ -9,19 +9,19 @@ import ClassDialog from './components/ClassDialog';
 import SortableClassItem from './components/SortableClassItem';
 import { FileDown, Presentation, Plus, AlertCircle } from 'lucide-react';
 import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
 } from '@dnd-kit/core';
 import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
 const App: React.FC = () => {
@@ -102,6 +102,70 @@ const App: React.FC = () => {
     } finally {
       setIsProcessing(false);
       setPendingFiles([]);
+    }
+  };
+
+  const handleFolderSelected = async (files: File[]) => {
+    setIsProcessing(true);
+    setError(null);
+    
+    try {
+      // Group files by first-level subfolder
+      const groupsByFolder = new Map<string, File[]>();
+      
+      for (const file of files) {
+        // @ts-ignore - webkitRelativePath exists but not in type definitions
+        const relativePath = file.webkitRelativePath || file.name;
+        const parts = relativePath.split('/');
+        
+        // Extract subfolder name (second level - first level is root folder)
+        // Example: "Avaliação de Saída - 2025/1º Ano A/file.csv" -> parts[1] = "1º Ano A"
+        const folderName = parts.length > 2 ? parts[1] : (parts.length > 1 ? parts[0] : 'Sem Turma');
+        
+        const existing = groupsByFolder.get(folderName) || [];
+        groupsByFolder.set(folderName, [...existing, file]);
+      }
+      
+      // Sort folder names naturally (1º Ano A, 1º Ano B, 2º Ano A, etc.)
+      const sortedFolderNames = Array.from(groupsByFolder.keys()).sort((a, b) => {
+        // Natural sort to handle "1º Ano", "2º Ano", etc.
+        return a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' });
+      });
+      
+      // Process each folder as a separate class in sorted order
+      const newClasses: ClassData[] = [];
+      
+      for (const className of sortedFolderNames) {
+        const folderFiles = groupsByFolder.get(className)!;
+        const imageFiles = folderFiles.filter(f => f.type.startsWith('image/'));
+        const csvFiles = folderFiles.filter(f => 
+          f.type === 'text/csv' || f.name.endsWith('.csv') || f.type === 'text/plain'
+        );
+
+        const processedImgs = imageFiles.length > 0 ? await Promise.all(imageFiles.map(processImageFile)) : [];
+        const processedCsvs = csvFiles.length > 0 ? await Promise.all(csvFiles.map(processCsvFile)) : [];
+
+        newClasses.push({
+          id: `${Date.now()}-${className}`,
+          name: className,
+          images: processedImgs,
+          csvData: processedCsvs
+        });
+      }
+      
+      // Add all new classes, expanding them by default
+      setClasses(prev => [...prev, ...newClasses]);
+      setExpandedClasses(prev => {
+        const newSet = new Set(prev);
+        newClasses.forEach(c => newSet.add(c.id));
+        return newSet;
+      });
+      
+    } catch (err) {
+      setError("Erro ao processar pasta. Verifique se os CSVs estão no formato correto.");
+      console.error(err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -214,7 +278,11 @@ const App: React.FC = () => {
           
           {/* Left Column: Input & Preview */}
           <div className="lg:col-span-2 space-y-8">
-            <DropZone onFilesSelected={handleFilesSelected} isProcessing={isProcessing} />
+            <DropZone 
+              onFilesSelected={handleFilesSelected}
+              onFolderSelected={handleFolderSelected}
+              isProcessing={isProcessing} 
+            />
             
             {/* Class-based file list */}
             {classes.length > 0 && (

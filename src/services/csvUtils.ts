@@ -196,10 +196,10 @@ export const processCsvFile = async (file: File): Promise<ParsedData> => {
       
       // --- PASS 3: Calculate Reading Level Number and Propagate to Math ---
       // Logic: 
-      // Level 4: >= 80%
-      // Level 3: 50% - 79%
-      // Level 2: 25% - 49%
-      // Level 1: < 25%
+      // Level 4: >= 75% (verde escuro)
+      // Level 3: 50% - 74% (verde claro)
+      // Level 2: 25% - 49% (laranja)
+      // Level 1: < 25% (vermelho)
       
       const portugueseLevels = new Map<string, string>();
       
@@ -208,7 +208,7 @@ export const processCsvFile = async (file: File): Promise<ParsedData> => {
         if (student.materia === 'Língua Portuguesa' && student.media) {
           const mediaVal = parseInt(student.media);
           let nNum = '1';
-          if (mediaVal >= 80) nNum = '4';
+          if (mediaVal >= 75) nNum = '4';
           else if (mediaVal >= 50) nNum = '3';
           else if (mediaVal >= 25) nNum = '2';
           else nNum = '1';

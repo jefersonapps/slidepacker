@@ -3,7 +3,7 @@
 O SlidePacker é uma aplicação React projetada para gerar relatórios escolares em formato PowerPoint (PPTX) a partir de arquivos CSV e imagens. O sistema organiza os dados por turmas e gera uma apresentação única contendo slides para todas as turmas sequencialmente.
 
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="./public/logo.png"/>
+<img height="475" alt="GHBanner" src="./public/logo.png"/>
 </div>
 
 ## Funcionalidades
